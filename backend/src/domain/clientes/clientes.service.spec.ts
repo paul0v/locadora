@@ -1,10 +1,9 @@
 import { ClientesDomainService } from './clientes.service';
 import { NotFoundError } from '../errors';
-import { Cliente } from './cliente.entity';
 
 describe('ClientesDomainService', () => {
   let service: ClientesDomainService;
-  let repo: any;
+  let repo: jest.Mocked<import('./cliente.repository').ClienteRepository>;
 
   beforeEach(() => {
     repo = {
@@ -24,7 +23,9 @@ describe('ClientesDomainService', () => {
 
   it('throws NotFoundError when updating non-existent cliente', async () => {
     repo.findById.mockResolvedValue(null);
-    await expect(service.update(1, { nome: 'x' })).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.update(1, { nome: 'x' })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 
   it('throws NotFoundError when removing non-existent cliente', async () => {

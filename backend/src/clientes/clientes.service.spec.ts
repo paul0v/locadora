@@ -33,7 +33,9 @@ describe('ClientesService', () => {
 
   it('translates NotFoundError into NotFoundException on findOne', async () => {
     const domain = moduleRef.get<ClientesDomainService>(ClientesDomainService);
-    jest.spyOn(domain, 'findOne').mockRejectedValue(new NotFoundError('Cliente', 5));
+    jest
+      .spyOn(domain, 'findOne')
+      .mockRejectedValue(new NotFoundError('Cliente', 5));
     await expect(service.findOne(5)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

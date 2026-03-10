@@ -1,15 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { LocacoesService } from './locacoes.service';
 
 describe('LocacoesService', () => {
   let service: LocacoesService;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [LocacoesService],
-    }).compile();
-
-    service = module.get<LocacoesService>(LocacoesService);
+  beforeEach(() => {
+    // Mock simples para teste básico
+    service = new LocacoesService(null, null, null, null);
   });
 
   it('should be defined', () => {

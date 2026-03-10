@@ -1,33 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Plus, Edit, Trash } from 'tabler-icons-react';
 import Modal from '../components/Modal';
 import './Veiculos.css';
+import { api } from '../services/api';
+
+type BackendStatus = 'DISPONIVEL' | 'ALUGADO' | 'MANUTENCAO';
 
 interface Veiculo {
   id: number;
-  nome: string;
-  marca: string;
   placa: string;
+  marca: string;
+  modelo: string;
+  ano: number;
   categoria: string;
-  diaria: string;
-  status: 'Disponível' | 'Locado' | 'Manutenção';
+  status: BackendStatus;
 }
 
 interface VeiculoFormData {
-  nome: string;
-  marca: string;
   placa: string;
+  marca: string;
+  modelo: string;
+  ano: number;
   categoria: string;
-  diaria: string;
 }
 
 export default function Veiculos() {
-  const [veiculos, setVeiculos] = useState<Veiculo[]>([
-    { id: 1, nome: 'Polo', marca: 'VW - 2023', placa: 'ABC-1234', categoria: 'Econômico', diaria: 'R$ 120.00', status: 'Disponível' },
-    { id: 2, nome: 'Corolla', marca: 'Toyota - 2024', placa: 'XYZ-9876', categoria: 'Sedan Premium', diaria: 'R$ 280.00', status: 'Locado' },
-    { id: 3, nome: 'Renegade', marca: 'Jeep - 2023', placa: 'KJF-4432', categoria: 'SUV', diaria: 'R$ 220.00', status: 'Manutenção' },
-    { id: 4, nome: 'Cronos', marca: 'Fiat - 2022', placa: 'PQP-1010', categoria: 'Sedan', diaria: 'R$ 150.00', status: 'Disponível' },
-  ]);
+  const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
   const [search, setSearch] = useState('');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -35,33 +33,64 @@ export default function Veiculos() {
   const [selectedVeiculo, setSelectedVeiculo] = useState<Veiculo | null>(null);
 
   const statusColor = {
-    'Disponível': 'available',
-    'Locado': 'rented',
-    'Manutenção': 'maintenance',
+    'DISPONIVEL': 'available',
+    'ALUGADO': 'rented',
+    'MANUTENCAO': 'maintenance',
+  } as Record<BackendStatus, string>;
+
+  const statusLabel = {
+    'DISPONIVEL': 'Disponível',
+    'ALUGADO': 'Locado',
+    'MANUTENCAO': 'Manutenção',
+  } as Record<BackendStatus, string>;
+
+  useEffect(() => {
+    fetchVeiculos();
+  }, []);
+
+  const fetchVeiculos = async () => {
+    try {
+      const res = await api.get<Veiculo[]>('/veiculos');
+      setVeiculos(res.data);
+    } catch (err) {
+      console.error('Erro ao buscar veículos', err);
+    }
   };
 
-  const handleNewVeiculo = (data: VeiculoFormData) => {
-    const newVeiculo: Veiculo = {
-      id: Math.max(...veiculos.map(v => v.id), 0) + 1,
-      ...data,
-      status: 'Disponível',
-    };
-    setVeiculos([...veiculos, newVeiculo]);
-    setIsNewModalOpen(false);
+  const handleNewVeiculo = async (data: VeiculoFormData) => {
+    try {
+      const res = await api.post<Veiculo>('/veiculos', data);
+      setVeiculos((prev) => [...prev, res.data]);
+      setIsNewModalOpen(false);
+    } catch (err) {
+      console.error('Erro ao criar veículo', err);
+      alert('Erro ao criar veículo');
+    }
   };
 
-  const handleEditVeiculo = (data: VeiculoFormData) => {
+  const handleEditVeiculo = async (data: VeiculoFormData) => {
     if (!selectedVeiculo) return;
-    setVeiculos(veiculos.map(v => v.id === selectedVeiculo.id ? { ...v, ...data } : v));
-    setIsEditModalOpen(false);
-    setSelectedVeiculo(null);
+    try {
+      await api.put(`/veiculos/${selectedVeiculo.id}`, data);
+      setVeiculos((prev) => prev.map(v => v.id === selectedVeiculo.id ? { ...v, ...data } as Veiculo : v));
+      setIsEditModalOpen(false);
+      setSelectedVeiculo(null);
+    } catch (err) {
+      console.error('Erro ao atualizar veículo', err);
+      alert('Erro ao atualizar veículo');
+    }
   };
 
-  const handleDeleteVeiculo = () => {
+  const handleDeleteVeiculo = async () => {
     if (!selectedVeiculo) return;
-    setVeiculos(veiculos.filter(v => v.id !== selectedVeiculo.id));
-    setIsDeleteModalOpen(false);
-    setSelectedVeiculo(null);
+    try {
+      await api.delete(`/veiculos/${selectedVeiculo.id}`);
+      setVeiculos((prev) => prev.filter(v => v.id !== selectedVeiculo.id));
+      setIsDeleteModalOpen(false);
+      setSelectedVeiculo(null);
+    } catch (err) {
+      console.error('Erro ao deletar veículo', err);
+    }
   };
 
   const openEditModal = (veiculo: Veiculo) => {
@@ -75,7 +104,7 @@ export default function Veiculos() {
   };
 
   const filteredVeiculos = veiculos.filter(v =>
-    v.nome.toLowerCase().includes(search.toLowerCase()) ||
+    v.marca.toLowerCase().includes(search.toLowerCase()) ||
     v.placa.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -106,10 +135,10 @@ export default function Veiculos() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Veículo</th>
               <th>Placa</th>
+              <th>Veículo</th>
+              <th>Ano</th>
               <th>Categoria</th>
-              <th>Diária</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
@@ -117,18 +146,13 @@ export default function Veiculos() {
           <tbody>
             {filteredVeiculos.map((veiculo) => (
               <tr key={veiculo.id}>
-                <td>
-                  <div className="veiculo-info">
-                    <strong>{veiculo.nome}</strong>
-                    <small>{veiculo.marca}</small>
-                  </div>
-                </td>
-                <td>{veiculo.placa}</td>
+                <td><strong>{veiculo.placa}</strong></td>
+                <td>{veiculo.marca} {veiculo.modelo}</td>
+                <td>{veiculo.ano}</td>
                 <td>{veiculo.categoria}</td>
-                <td>{veiculo.diaria}</td>
                 <td>
                   <span className={`status ${statusColor[veiculo.status]}`}>
-                    {veiculo.status}
+                    {statusLabel[veiculo.status]}
                   </span>
                 </td>
                 <td className="table-actions">
@@ -168,11 +192,11 @@ export default function Veiculos() {
         {selectedVeiculo && (
           <VeiculoForm
             initialData={{
-              nome: selectedVeiculo.nome,
-              marca: selectedVeiculo.marca,
               placa: selectedVeiculo.placa,
+              marca: selectedVeiculo.marca,
+              modelo: selectedVeiculo.modelo,
+              ano: selectedVeiculo.ano,
               categoria: selectedVeiculo.categoria,
-              diaria: selectedVeiculo.diaria.replace('R$ ', '').replace('.00', ''),
             }}
             onSubmit={handleEditVeiculo}
           />
@@ -190,7 +214,7 @@ export default function Veiculos() {
         confirmText="Deletar"
         isDangerous
       >
-        <p>Tem certeza que deseja deletar o veículo <strong>{selectedVeiculo?.nome}</strong> ({selectedVeiculo?.placa})?</p>
+        <p>Tem certeza que deseja deletar o veículo <strong>{selectedVeiculo?.marca} {selectedVeiculo?.modelo}</strong> ({selectedVeiculo?.placa})?</p>
         <p style={{ color: '#666', fontSize: '0.9em' }}>Esta ação não pode ser desfeita.</p>
       </Modal>
     </div>
@@ -205,11 +229,11 @@ interface VeiculoFormProps {
 function VeiculoForm({ initialData, onSubmit }: VeiculoFormProps) {
   const [formData, setFormData] = useState<VeiculoFormData>(
     initialData || {
-      nome: '',
-      marca: '',
       placa: '',
+      marca: '',
+      modelo: '',
+      ano: new Date().getFullYear(),
       categoria: '',
-      diaria: '',
     }
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -218,10 +242,11 @@ function VeiculoForm({ initialData, onSubmit }: VeiculoFormProps) {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
-    if (!formData.nome.trim()) newErrors.nome = 'Nome é obrigatório';
     if (!formData.placa.trim()) newErrors.placa = 'Placa é obrigatória';
+    if (!formData.marca.trim()) newErrors.marca = 'Marca é obrigatória';
+    if (!formData.modelo.trim()) newErrors.modelo = 'Modelo é obrigatório';
+    if (!formData.ano) newErrors.ano = 'Ano é obrigatório';
     if (!formData.categoria.trim()) newErrors.categoria = 'Categoria é obrigatória';
-    if (!formData.diaria.trim()) newErrors.diaria = 'Diária é obrigatória';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -234,39 +259,53 @@ function VeiculoForm({ initialData, onSubmit }: VeiculoFormProps) {
   return (
     <form className="veiculo-form" onSubmit={handleSubmit}>
       <div className="form-group">
-        <label>Nome do Veículo</label>
-        <input
-          type="text"
-          value={formData.nome}
-          onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-          placeholder="Ex: Polo"
-        />
-        {errors.nome && <span className="error">{errors.nome}</span>}
-      </div>
-
-      <div className="form-group">
-        <label>Marca e Ano</label>
-        <input
-          type="text"
-          value={formData.marca}
-          onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
-          placeholder="Ex: VW - 2023"
-        />
-      </div>
-
-      <div className="form-group">
-        <label>Placa</label>
+        <label>Placa *</label>
         <input
           type="text"
           value={formData.placa}
           onChange={(e) => setFormData({ ...formData, placa: e.target.value.toUpperCase() })}
-          placeholder="Ex: ABC-1234"
+          placeholder="Ex: ABC1234"
         />
         {errors.placa && <span className="error">{errors.placa}</span>}
       </div>
 
       <div className="form-group">
-        <label>Categoria</label>
+        <label>Marca *</label>
+        <input
+          type="text"
+          value={formData.marca}
+          onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
+          placeholder="Ex: Toyota"
+        />
+        {errors.marca && <span className="error">{errors.marca}</span>}
+      </div>
+
+      <div className="form-group">
+        <label>Modelo *</label>
+        <input
+          type="text"
+          value={formData.modelo}
+          onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
+          placeholder="Ex: Corolla"
+        />
+        {errors.modelo && <span className="error">{errors.modelo}</span>}
+      </div>
+
+      <div className="form-group">
+        <label>Ano *</label>
+        <input
+          type="number"
+          value={formData.ano}
+          onChange={(e) => setFormData({ ...formData, ano: parseInt(e.target.value) })}
+          placeholder="Ex: 2023"
+          min="1990"
+          max={new Date().getFullYear()}
+        />
+        {errors.ano && <span className="error">{errors.ano}</span>}
+      </div>
+
+      <div className="form-group">
+        <label>Categoria *</label>
         <select
           value={formData.categoria}
           onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
@@ -279,18 +318,6 @@ function VeiculoForm({ initialData, onSubmit }: VeiculoFormProps) {
           <option value="Luxo">Luxo</option>
         </select>
         {errors.categoria && <span className="error">{errors.categoria}</span>}
-      </div>
-
-      <div className="form-group">
-        <label>Diária (R$)</label>
-        <input
-          type="number"
-          step="0.01"
-          value={formData.diaria}
-          onChange={(e) => setFormData({ ...formData, diaria: e.target.value })}
-          placeholder="Ex: 120.00"
-        />
-        {errors.diaria && <span className="error">{errors.diaria}</span>}
       </div>
 
       <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>

@@ -1,26 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Car, TrendingUp, Users, Calendar } from 'tabler-icons-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Car, TrendingUp, Users, AlertTriangle, CurrencyDollar } from 'tabler-icons-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { api } from '../services/api';
 import './Dashboard.css';
 
-const revenueData = [
-  { month: 'Jan', value: 4500 },
-  { month: 'Fev', value: 5200 },
-  { month: 'Mar', value: 3800 },
-  { month: 'Abr', value: 6000 },
-  { month: 'Mai', value: 5800 },
-  { month: 'Jun', value: 7200 },
-];
-
 interface Veiculo {
   id: number;
-  nome: string;
-  marca: string;
   placa: string;
-  categoria: string;
-  diaria: string;
-  status: 'Disponível' | 'Locado' | 'Manutenção';
+  marca: string;
+  modelo: string;
+  ano: number;
+  cor?: string;
+  quilometragemAtual: string;
+  status: string;
+  categoria?: { id: number; nome: string; tarifaDiaria: string };
 }
 
 interface Cliente {
@@ -30,52 +23,115 @@ interface Cliente {
   telefone: string;
   email: string;
   cnh: string;
+  endereco?: any;
 }
+
+interface Locacao {
+  id: number;
+  dataRetirada: string;
+  dataDevolucaoPrevista: string;
+  dataDevolucaoEfetiva?: string;
+  valorPrevisto: string;
+  valorFinal?: string;
+  status: string;
+  cliente: Cliente;
+  veiculo: Veiculo;
+  funcionario?: any;
+}
+
+interface Categoria {
+  id: number;
+  nome: string;
+  tarifaDiaria: string;
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export default function Dashboard() {
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [locacoesAtivas, setLocacoesAtivas] = useState(0);
+  const [locacoes, setLocacoes] = useState<Locacao[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const carregarDados = async () => {
       try {
-        // Tenta carregar da API
-        const veiculosResponse = await api.get('/veiculos');
-        const clientesResponse = await api.get('/clientes');
-        setVeiculos(veiculosResponse.data);
-        setClientes(clientesResponse.data);
+        setLoading(true);
+        const [veiculosRes, clientesRes, locacoesRes, categoriasRes] = await Promise.all([
+          api.get('/veiculos'),
+          api.get('/clientes'),
+          api.get('/locacoes'),
+          api.get('/categorias')
+        ]);
+
+        setVeiculos(veiculosRes.data);
+        setClientes(clientesRes.data);
+        setLocacoes(locacoesRes.data);
+        setCategorias(categoriasRes.data);
       } catch (error) {
-        // Usa dados mock se API não estiver disponível
-        setVeiculos([
-          { id: 1, nome: 'Polo', marca: 'VW - 2023', placa: 'ABC-1234', categoria: 'Econômico', diaria: 'R$ 120.00', status: 'Disponível' },
-          { id: 2, nome: 'Corolla', marca: 'Toyota - 2024', placa: 'XYZ-9876', categoria: 'Sedan Premium', diaria: 'R$ 280.00', status: 'Locado' },
-          { id: 3, nome: 'Renegade', marca: 'Jeep - 2023', placa: 'KJF-4432', categoria: 'SUV', diaria: 'R$ 220.00', status: 'Manutenção' },
-          { id: 4, nome: 'Cronos', marca: 'Fiat - 2022', placa: 'PQP-1010', categoria: 'Sedan', diaria: 'R$ 150.00', status: 'Disponível' },
-        ]);
-        setClientes([
-          { id: 1, nome: 'Ana Beatriz Silva', cpf: '123.456.789-00', telefone: '(11) 98765-4321', email: 'ana.beatriz@email.com', cnh: 'ABC12345' },
-          { id: 2, nome: 'Carlos Eduardo Oliveira', cpf: '987.654.321-11', telefone: '(21) 97654-3210', email: 'carlos.oliver@email.com', cnh: 'XYZ67890' },
-          { id: 3, nome: 'Juliana Santos', cpf: '456.789.123-22', telefone: '(31) 96543-2109', email: 'juju.santos@email.com', cnh: 'DEF45678' },
-          { id: 4, nome: 'Ricardo Ferreira', cpf: '789.123.456-33', telefone: '(41) 95432-1098', email: 'ric.fer@email.com', cnh: 'GHI90123' },
-        ]);
+        console.error('Erro ao carregar dados:', error);
+        // Dados mock como fallback
+        setVeiculos([]);
+        setClientes([]);
+        setLocacoes([]);
+        setCategorias([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     carregarDados();
   }, []);
 
-  // Calcula estatísticas dinamicamente
-  const veiculosDisponiveis = veiculos.filter(v => v.status === 'Disponível').length;
-  const veiculosLocados = veiculos.filter(v => v.status === 'Locado').length;
-  const veiculosManutencao = veiculos.filter(v => v.status === 'Manutenção').length;
+  // Cálculos das métricas
+  const veiculosDisponiveis = veiculos.filter(v => v.status === 'DISPONIVEL').length;
+  const veiculosLocados = veiculos.filter(v => v.status === 'ALUGADO').length;
+  const veiculosManutencao = veiculos.filter(v => ['EM_MANUTENCAO', 'INATIVO', 'VENDIDO'].includes(v.status)).length;
+  const locacoesAtivas = locacoes.filter(l => l.status === 'ATIVA').length;
   const totalClientes = clientes.length;
+
+  // Receita estimada (valorPrevisto das locações ativas)
+  const receitaEstimada = locacoes
+    .filter(l => l.status === 'ATIVA')
+    .reduce((total, locacao) => total + parseFloat(locacao.valorPrevisto), 0);
+
+  // Dados para gráfico de pizza (distribuição por categoria)
+  const categoriaData = categorias.map(categoria => {
+    const count = veiculos.filter(v => v.categoria?.id === categoria.id).length;
+    return {
+      name: categoria.nome,
+      value: count,
+      tarifaMedia: parseFloat(categoria.tarifaDiaria)
+    };
+  }).filter(item => item.value > 0);
+
+  // Dados para gráfico de receita (simulado baseado em locações)
+  const receitaData = [
+    { month: 'Jan', value: 4500 },
+    { month: 'Fev', value: 5200 },
+    { month: 'Mar', value: 3800 },
+    { month: 'Abr', value: 6000 },
+    { month: 'Mai', value: 5800 },
+    { month: 'Jun', value: receitaEstimada },
+  ];
+
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <div className="dashboard-header">
+          <h1>Dashboard</h1>
+          <p>Carregando dados...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard">
       <div className="dashboard-header">
         <h1>Dashboard</h1>
-        <p>Bem-vindo de volta! Aqui está o resumo de hoje.</p>
+        <p>Bem-vindo de volta! Aqui está o resumo atual da locadora.</p>
       </div>
 
       <div className="stats-grid">
@@ -95,15 +151,15 @@ export default function Dashboard() {
             <TrendingUp color="#7b1fa2" size={28} />
           </div>
           <div className="stat-content">
-            <p className="stat-label">Veículos locados</p>
-            <h3>{veiculosLocados}</h3>
-            <span className="stat-info">em operação</span>
+            <p className="stat-label">Locações ativas</p>
+            <h3>{locacoesAtivas}</h3>
+            <span className="stat-info">em andamento</span>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#f3e5f5' }}>
-            <Users color="#7b1fa2" size={28} />
+          <div className="stat-icon" style={{ background: '#e8f5e8' }}>
+            <Users color="#2e7d32" size={28} />
           </div>
           <div className="stat-content">
             <p className="stat-label">Clientes cadastrados</p>
@@ -114,12 +170,34 @@ export default function Dashboard() {
 
         <div className="stat-card">
           <div className="stat-icon" style={{ background: '#fff3e0' }}>
-            <Calendar color="#e65100" size={28} />
+            <AlertTriangle color="#e65100" size={28} />
           </div>
           <div className="stat-content">
             <p className="stat-label">Veículos em manutenção</p>
             <h3>{veiculosManutencao}</h3>
-            <span className="stat-info">em revisão</span>
+            <span className="stat-info">indisponíveis</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#f3e5f5' }}>
+            <CurrencyDollar color="#7b1fa2" size={28} />
+          </div>
+          <div className="stat-content">
+            <p className="stat-label">Receita estimada</p>
+            <h3>R$ {receitaEstimada.toFixed(2)}</h3>
+            <span className="stat-info">locações ativas</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#e3f2fd' }}>
+            <Car color="#1976d2" size={28} />
+          </div>
+          <div className="stat-content">
+            <p className="stat-label">Veículos locados</p>
+            <h3>{veiculosLocados}</h3>
+            <span className="stat-info">em uso</span>
           </div>
         </div>
       </div>
@@ -127,34 +205,65 @@ export default function Dashboard() {
       <div className="charts-row">
         <div className="chart-container">
           <h3>Receita Mensal</h3>
-          <p>Faturamento nos últimos 6 meses</p>
+          <p>Faturamento projetado nos últimos meses</p>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={revenueData}>
+            <LineChart data={receitaData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
               <XAxis dataKey="month" stroke="#999" />
               <YAxis stroke="#999" />
-              <Tooltip />
+              <Tooltip formatter={(value) => [`R$ ${value}`, 'Receita']} />
               <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="chart-container small">
-          <h3>Veículos Cadastrados</h3>
-          <p>Frota da locadora hoje</p>
-          <div className="recent-rentals">
-            {veiculos.map((veiculo) => (
-              <div className="rental-item" key={veiculo.id}>
-                <div>
-                  <p className="rental-name">{veiculo.nome}</p>
-                  <p className="rental-vehicle">{veiculo.marca}</p>
+        <div className="chart-container">
+          <h3>Distribuição por Categoria</h3>
+          <p>Veículos por categoria de preço</p>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={categoriaData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {categoriaData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="recent-section">
+        <div className="recent-container">
+          <h3>Locações Recentes</h3>
+          <div className="recent-list">
+            {locacoes.slice(0, 5).map((locacao) => (
+              <div className="recent-item" key={locacao.id}>
+                <div className="recent-info">
+                  <p className="recent-title">{locacao.cliente.nome}</p>
+                  <p className="recent-subtitle">{locacao.veiculo.marca} {locacao.veiculo.modelo} - {locacao.veiculo.placa}</p>
+                  <p className="recent-date">Retirada: {new Date(locacao.dataRetirada).toLocaleDateString('pt-BR')}</p>
                 </div>
-                <div className="rental-amount">{veiculo.diaria}</div>
-                <span className={`status ${veiculo.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                  {veiculo.status}
+                <div className="recent-amount">
+                  R$ {parseFloat(locacao.valorPrevisto).toFixed(2)}
+                </div>
+                <span className={`status ${locacao.status.toLowerCase()}`}>
+                  {locacao.status}
                 </span>
               </div>
             ))}
+            {locacoes.length === 0 && (
+              <p className="no-data">Nenhuma locação encontrada</p>
+            )}
           </div>
         </div>
       </div>

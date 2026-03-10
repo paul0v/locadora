@@ -1,9 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Categoria } from '../categoria/categoria.entity';
 
 export enum StatusVeiculo {
   DISPONIVEL = 'DISPONIVEL',
   ALUGADO = 'ALUGADO',
-  MANUTENCAO = 'MANUTENCAO',
+  EM_MANUTENCAO = 'EM_MANUTENCAO',
+  INATIVO = 'INATIVO',
+  VENDIDO = 'VENDIDO',
 }
 
 @Entity()
@@ -23,8 +26,14 @@ export class Veiculo {
   @Column()
   ano: number;
 
-  @Column()
-  categoria: string;
+  @Column({ nullable: true })
+  cor: string;
+
+  @Column('decimal', { precision: 12, scale: 2, default: 0 })
+  quilometragemAtual: number;
+
+  @ManyToOne(() => Categoria, { nullable: true })
+  categoria: Categoria;
 
   @Column({
     type: 'enum',

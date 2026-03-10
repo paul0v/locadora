@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+} from 'typeorm';
+import { Endereco } from '../../endereco/endereco.entity';
 
 @Entity()
 export class Cliente {
@@ -14,9 +21,19 @@ export class Cliente {
   @Column()
   cnh: string;
 
+  @Column({ nullable: true })
+  validadeCnh: Date;
+
+  @Column({ nullable: true })
+  dataNascimento: Date;
+
   @Column()
   telefone: string;
 
   @Column()
   email: string;
+
+  @OneToOne(() => Endereco, { cascade: true, nullable: true })
+  @JoinColumn()
+  endereco: Endereco;
 }

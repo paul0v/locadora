@@ -26,17 +26,13 @@ export default function Clientes() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   async function carregarClientes() {
     try {
-      setIsLoading(true);
       const response = await api.get('/clientes');
       setClientes(response.data);
     } catch (error) {
       console.log('Usando dados mock - API indisponível');
-    } finally {
-      setIsLoading(false);
     }
   }
 
