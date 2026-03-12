@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Car, TrendingUp, Users, AlertTriangle, CurrencyDollar } from 'tabler-icons-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { api } from '../services/api';
+import api from '../services/api';
 import './Dashboard.css';
 
 interface Veiculo {

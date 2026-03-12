@@ -5,6 +5,7 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { Endereco } from '../../endereco/endereco.entity';
 
 @Entity()
@@ -21,9 +22,11 @@ export class Cliente {
   @Column()
   cnh: string;
 
+  @Exclude()
   @Column({ nullable: true })
   validadeCnh: Date;
 
+  @Exclude()
   @Column({ nullable: true })
   dataNascimento: Date;
 

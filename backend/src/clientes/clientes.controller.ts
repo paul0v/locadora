@@ -6,20 +6,21 @@ import {
   Param,
   Put,
   Delete,
-  UsePipes,
   ValidationPipe,
+  UseInterceptors,
 } from '@nestjs/common';
+import { ClassSerializerInterceptor } from '@nestjs/common';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
 
 @Controller('clientes')
+@UseInterceptors(ClassSerializerInterceptor)
 export class ClientesController {
   constructor(private readonly clientesService: ClientesService) {}
 
   @Post()
-  @UsePipes(new ValidationPipe({ transform: true }))
-  create(@Body() data: CreateClienteDto) {
+  create(@Body(new ValidationPipe({ transform: true })) data: CreateClienteDto) {
     return this.clientesService.create(data);
   }
 
@@ -34,8 +35,7 @@ export class ClientesController {
   }
 
   @Put(':id')
-  @UsePipes(new ValidationPipe({ transform: true }))
-  update(@Param('id') id: string, @Body() data: UpdateClienteDto) {
+  update(@Param('id') id: string, @Body(new ValidationPipe({ transform: true })) data: UpdateClienteDto) {
     return this.clientesService.update(Number(id), data);
   }
 

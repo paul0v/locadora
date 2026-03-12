@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronRight } from 'tabler-icons-react';
 import './Locacoes.css';
-import { api } from '../services/api';
+import api from '../services/api';
 
 interface Cliente {
   id: number;

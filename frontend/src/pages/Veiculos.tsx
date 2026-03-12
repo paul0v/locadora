@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, Plus, Edit, Trash } from 'tabler-icons-react';
 import Modal from '../components/Modal';
 import './Veiculos.css';
-import { api } from '../services/api';
+import api from '../services/api';
 
 type BackendStatus = 'DISPONIVEL' | 'ALUGADO' | 'EM_MANUTENCAO' | 'INATIVO' | 'VENDIDO';
 

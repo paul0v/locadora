@@ -7,6 +7,7 @@ interface ClienteFormProps {
 }
 
 export interface ClienteFormData {
+  id?: number;
   nome: string;
   cpf: string;
   cnh: string;
@@ -17,6 +18,7 @@ export interface ClienteFormData {
 export default function ClienteForm({ onSubmit, initialData }: ClienteFormProps) {
   const [formData, setFormData] = useState<ClienteFormData>(
     initialData || {
+      id: undefined,
       nome: '',
       cpf: '',
       cnh: '',
@@ -73,7 +75,13 @@ export default function ClienteForm({ onSubmit, initialData }: ClienteFormProps)
     if (validateForm()) {
       setIsSubmitting(true);
       try {
-        await onSubmit(formData);
+        // Remover id e caracteres especiais do CPF antes de enviar
+        const { id, ...dataToSend } = formData;
+        const cleanedData = {
+          ...dataToSend,
+          cpf: dataToSend.cpf.replace(/\D/g, ''),
+        };
+        await onSubmit(cleanedData as ClienteFormData);
       } finally {
         setIsSubmitting(false);
       }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, Edit, Trash } from 'tabler-icons-react';
-import { api } from '../services/api';
+import api from '../services/api';
 import Modal from '../components/Modal';
 import ClienteForm, { ClienteFormData } from '../components/ClienteForm';
 import './Clientes.css';
