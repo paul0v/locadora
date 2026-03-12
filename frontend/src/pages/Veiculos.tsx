@@ -4,7 +4,12 @@ import Modal from '../components/Modal';
 import './Veiculos.css';
 import { api } from '../services/api';
 
-type BackendStatus = 'DISPONIVEL' | 'ALUGADO' | 'MANUTENCAO';
+type BackendStatus = 'DISPONIVEL' | 'ALUGADO' | 'EM_MANUTENCAO' | 'INATIVO' | 'VENDIDO';
+
+interface Categoria {
+  id: number;
+  nome: string;
+}
 
 interface Veiculo {
   id: number;
@@ -12,7 +17,7 @@ interface Veiculo {
   marca: string;
   modelo: string;
   ano: number;
-  categoria: string;
+  categoria: Categoria;
   status: BackendStatus;
 }
 
@@ -21,32 +26,53 @@ interface VeiculoFormData {
   marca: string;
   modelo: string;
   ano: number;
-  categoria: string;
+  categoriaId: number | '';
+}
+
+interface VeiculoFormProps {
+  initialData?: VeiculoFormData;
+  categorias: Categoria[];
+  onSubmit: (data: VeiculoFormData) => void;
 }
 
 export default function Veiculos() {
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [search, setSearch] = useState('');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedVeiculo, setSelectedVeiculo] = useState<Veiculo | null>(null);
 
-  const statusColor = {
+  const statusColor: Record<BackendStatus, string> = {
     'DISPONIVEL': 'available',
     'ALUGADO': 'rented',
-    'MANUTENCAO': 'maintenance',
-  } as Record<BackendStatus, string>;
+    'EM_MANUTENCAO': 'maintenance',
+    'INATIVO': 'maintenance',
+    'VENDIDO': 'maintenance',
+  };
 
-  const statusLabel = {
+  const statusLabel: Record<BackendStatus, string> = {
     'DISPONIVEL': 'Disponível',
     'ALUGADO': 'Locado',
-    'MANUTENCAO': 'Manutenção',
-  } as Record<BackendStatus, string>;
+    'EM_MANUTENCAO': 'Em Manutenção',
+    'INATIVO': 'Inativo',
+    'VENDIDO': 'Vendido',
+  };
 
   useEffect(() => {
     fetchVeiculos();
+    fetchCategorias();
   }, []);
+
+  const fetchCategorias = async () => {
+    try {
+      const res = await api.get<Categoria[]>('/categorias');
+      setCategorias(res.data);
+    } catch (err) {
+      console.error('Erro ao buscar categorias', err);
+    }
+  };
 
   const fetchVeiculos = async () => {
     try {
@@ -59,25 +85,39 @@ export default function Veiculos() {
 
   const handleNewVeiculo = async (data: VeiculoFormData) => {
     try {
-      const res = await api.post<Veiculo>('/veiculos', data);
+      const payload = {
+        placa: data.placa,
+        marca: data.marca,
+        modelo: data.modelo,
+        ano: data.ano,
+        categoria: { id: data.categoriaId },
+      };
+      const res = await api.post<Veiculo>('/veiculos', payload);
       setVeiculos((prev) => [...prev, res.data]);
       setIsNewModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao criar veículo', err);
-      alert('Erro ao criar veículo');
+      alert(err?.response?.data?.message || 'Erro ao criar veículo');
     }
   };
 
   const handleEditVeiculo = async (data: VeiculoFormData) => {
     if (!selectedVeiculo) return;
     try {
-      await api.put(`/veiculos/${selectedVeiculo.id}`, data);
-      setVeiculos((prev) => prev.map(v => v.id === selectedVeiculo.id ? { ...v, ...data } as Veiculo : v));
+      const payload = {
+        placa: data.placa,
+        marca: data.marca,
+        modelo: data.modelo,
+        ano: data.ano,
+        categoria: { id: data.categoriaId },
+      };
+      await api.put(`/veiculos/${selectedVeiculo.id}`, payload);
+      setVeiculos((prev) => prev.map(v => v.id === selectedVeiculo.id ? { ...v, ...payload } as Veiculo : v));
       setIsEditModalOpen(false);
       setSelectedVeiculo(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao atualizar veículo', err);
-      alert('Erro ao atualizar veículo');
+      alert(err?.response?.data?.message || 'Erro ao atualizar veículo');
     }
   };
 
@@ -149,7 +189,7 @@ export default function Veiculos() {
                 <td><strong>{veiculo.placa}</strong></td>
                 <td>{veiculo.marca} {veiculo.modelo}</td>
                 <td>{veiculo.ano}</td>
-                <td>{veiculo.categoria}</td>
+                <td>{veiculo.categoria?.nome || '-'}</td>
                 <td>
                   <span className={`status ${statusColor[veiculo.status]}`}>
                     {statusLabel[veiculo.status]}
@@ -176,7 +216,7 @@ export default function Veiculos() {
         onConfirm={() => {}}
         confirmText="Salvar"
       >
-        <VeiculoForm onSubmit={handleNewVeiculo} />
+        <VeiculoForm categorias={categorias} onSubmit={handleNewVeiculo} />
       </Modal>
 
       <Modal
@@ -191,12 +231,13 @@ export default function Veiculos() {
       >
         {selectedVeiculo && (
           <VeiculoForm
+            categorias={categorias}
             initialData={{
               placa: selectedVeiculo.placa,
               marca: selectedVeiculo.marca,
               modelo: selectedVeiculo.modelo,
               ano: selectedVeiculo.ano,
-              categoria: selectedVeiculo.categoria,
+              categoriaId: selectedVeiculo.categoria?.id || ''
             }}
             onSubmit={handleEditVeiculo}
           />
@@ -221,19 +262,14 @@ export default function Veiculos() {
   );
 }
 
-interface VeiculoFormProps {
-  initialData?: VeiculoFormData;
-  onSubmit: (data: VeiculoFormData) => void;
-}
-
-function VeiculoForm({ initialData, onSubmit }: VeiculoFormProps) {
+function VeiculoForm({ initialData, categorias, onSubmit }: VeiculoFormProps) {
   const [formData, setFormData] = useState<VeiculoFormData>(
     initialData || {
       placa: '',
       marca: '',
       modelo: '',
       ano: new Date().getFullYear(),
-      categoria: '',
+      categoriaId: '',
     }
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -246,7 +282,7 @@ function VeiculoForm({ initialData, onSubmit }: VeiculoFormProps) {
     if (!formData.marca.trim()) newErrors.marca = 'Marca é obrigatória';
     if (!formData.modelo.trim()) newErrors.modelo = 'Modelo é obrigatório';
     if (!formData.ano) newErrors.ano = 'Ano é obrigatório';
-    if (!formData.categoria.trim()) newErrors.categoria = 'Categoria é obrigatória';
+    if (!formData.categoriaId) newErrors.categoriaId = 'Categoria é obrigatória';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -307,17 +343,15 @@ function VeiculoForm({ initialData, onSubmit }: VeiculoFormProps) {
       <div className="form-group">
         <label>Categoria *</label>
         <select
-          value={formData.categoria}
-          onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+          value={formData.categoriaId}
+          onChange={(e) => setFormData({ ...formData, categoriaId: Number(e.target.value) })}
         >
           <option value="">Selecione uma categoria</option>
-          <option value="Econômico">Econômico</option>
-          <option value="Sedan">Sedan</option>
-          <option value="Sedan Premium">Sedan Premium</option>
-          <option value="SUV">SUV</option>
-          <option value="Luxo">Luxo</option>
+          {categorias.map((cat) => (
+            <option key={cat.id} value={cat.id}>{cat.nome}</option>
+          ))}
         </select>
-        {errors.categoria && <span className="error">{errors.categoria}</span>}
+        {errors.categoriaId && <span className="error">{errors.categoriaId}</span>}
       </div>
 
       <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
@@ -326,3 +360,4 @@ function VeiculoForm({ initialData, onSubmit }: VeiculoFormProps) {
     </form>
   );
 }
+
