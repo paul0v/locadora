@@ -1,13 +1,16 @@
 import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Car, MapPin, TrendingUp, Power } from 'tabler-icons-react';
+import { useAuth } from '../context/AuthContext';
 import './Layout.css';
 
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout, user } = useAuth();
 
   const handleLogout = () => {
+    logout();
     navigate('/login');
   };
 
@@ -20,6 +23,7 @@ export default function Layout() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>AutoGestão</h2>
+          {user && <p className="user-name">Bem-vindo, {user.nome}!</p>}
         </div>
         <nav className="sidebar-nav">
           <Link to="/" className={`nav-item ${isActive('/')}`}>

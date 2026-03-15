@@ -100,6 +100,23 @@
   background: #0043a8;
 }
 
+.veiculos-page .btn-secondary {
+  padding: 10px 12px;
+  background: #f0f0f0;
+  color: #333;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.veiculos-page .btn-secondary:hover {
+  background: #e0e0e0;
+  border-color: #b0b0b0;
+}
+
 .veiculos-page .table-container {
   background: white;
   border-radius: 12px;
@@ -209,4 +226,48 @@
   border-color: #fecaca;
   background: #fef2f2;
 }
+
+.availability-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #666;
+}
+
+.availability-cell svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.availability-text {
+  font-weight: 500;
+  color: #333;
+  font-size: 13px;
+}
+
+.availability-date {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .veiculos-page .data-table {
+    font-size: 12px;
+  }
+
+  .veiculos-page .data-table th,
+  .veiculos-page .data-table td {
+    padding: 12px 8px;
+  }
+
+  .veiculos-page .page-actions {
+    flex-direction: column;
+  }
+
+  .veiculos-page .search-box {
+    max-width: 100%;
+  }
+}
+
 

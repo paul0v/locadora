@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Car, TrendingUp, Users, AlertTriangle, CurrencyDollar } from 'tabler-icons-react';
+import { Car, TrendingUp, Users, AlertTriangle, CurrencyDollar, Calendar, MapPin, Clock } from 'tabler-icons-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import api from '../services/api';
 import './Dashboard.css';
@@ -94,7 +94,22 @@ export default function Dashboard() {
   // Receita estimada (valorPrevisto das locações ativas)
   const receitaEstimada = locacoes
     .filter(l => l.status === 'ATIVA')
-    .reduce((total, locacao) => total + parseFloat(locacao.valorPrevisto), 0);
+    .reduce((total, locacao) => {
+      const valor = typeof locacao.valorPrevisto === 'string' 
+        ? parseFloat(locacao.valorPrevisto.replace('R$', '').replace(',', '.'))
+        : parseFloat(String(locacao.valorPrevisto));
+      return total + (isNaN(valor) ? 0 : valor);
+    }, 0);
+
+  // Receita realizada (locações completas)
+  const receitaRealizada = locacoes
+    .filter(l => l.status === 'FINALIZADA' && l.valorFinal)
+    .reduce((total, locacao) => {
+      const valor = typeof locacao.valorFinal === 'string' 
+        ? parseFloat(locacao.valorFinal.replace('R$', '').replace(',', '.'))
+        : parseFloat(String(locacao.valorFinal));
+      return total + (isNaN(valor) ? 0 : valor);
+    }, 0);
 
   // Dados para gráfico de pizza (distribuição por categoria)
   const categoriaData = categorias.map(categoria => {
@@ -106,15 +121,47 @@ export default function Dashboard() {
     };
   }).filter(item => item.value > 0);
 
-  // Dados para gráfico de receita (simulado baseado em locações)
-  const receitaData = [
-    { month: 'Jan', value: 4500 },
-    { month: 'Fev', value: 5200 },
-    { month: 'Mar', value: 3800 },
-    { month: 'Abr', value: 6000 },
-    { month: 'Mai', value: 5800 },
-    { month: 'Jun', value: receitaEstimada },
-  ];
+  // Gerar dados de receita mensal baseado em locações reais
+  const generateRevenueByMonth = () => {
+    const monthlyData: { [key: string]: number } = {};
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    // Inicializar todos os meses com 0
+    monthNames.forEach((_, index) => {
+      monthlyData[monthNames[index]] = 0;
+    });
+
+    // Somar locações completadas por mês
+    locacoes.forEach(locacao => {
+      if (locacao.status === 'FINALIZADA' && locacao.dataDevolucaoEfetiva) {
+        try {
+          const date = new Date(locacao.dataDevolucaoEfetiva);
+          const month = monthNames[date.getMonth()];
+          const valor = typeof locacao.valorFinal === 'string'
+            ? parseFloat(locacao.valorFinal.replace('R$', '').replace(',', '.'))
+            : parseFloat(String(locacao.valorFinal));
+          if (!isNaN(valor) && month) {
+            monthlyData[month] += valor;
+          }
+        } catch (e) {
+          console.warn('Erro ao processar data:', e);
+        }
+      }
+    });
+
+    // Adicionar dados atuais (locações ativas com receita estimada)
+    const currentMonth = monthNames[new Date().getMonth()];
+    if (currentMonth) {
+      monthlyData[currentMonth] += receitaEstimada;
+    }
+
+    return monthNames.map(month => ({
+      month,
+      value: monthlyData[month]
+    }));
+  };
+
+  const receitaData = generateRevenueByMonth();
 
   if (loading) {
     return (
@@ -191,6 +238,17 @@ export default function Dashboard() {
         </div>
 
         <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#e8f5e8' }}>
+            <TrendingUp color="#2e7d32" size={28} />
+          </div>
+          <div className="stat-content">
+            <p className="stat-label">Receita realizada</p>
+            <h3>R$ {receitaRealizada.toFixed(2)}</h3>
+            <span className="stat-info">locações finalizadas</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
           <div className="stat-icon" style={{ background: '#e3f2fd' }}>
             <Car color="#1976d2" size={28} />
           </div>
@@ -243,29 +301,79 @@ export default function Dashboard() {
       </div>
 
       <div className="recent-section">
-        <div className="recent-container">
+        <div className="recent-header">
           <h3>Locações Recentes</h3>
-          <div className="recent-list">
-            {locacoes.slice(0, 5).map((locacao) => (
-              <div className="recent-item" key={locacao.id}>
-                <div className="recent-info">
-                  <p className="recent-title">{locacao.cliente.nome}</p>
-                  <p className="recent-subtitle">{locacao.veiculo.marca} {locacao.veiculo.modelo} - {locacao.veiculo.placa}</p>
-                  <p className="recent-date">Retirada: {new Date(locacao.dataRetirada).toLocaleDateString('pt-BR')}</p>
-                </div>
-                <div className="recent-amount">
-                  R$ {parseFloat(locacao.valorPrevisto).toFixed(2)}
-                </div>
-                <span className={`status ${locacao.status.toLowerCase()}`}>
-                  {locacao.status}
-                </span>
-              </div>
-            ))}
-            {locacoes.length === 0 && (
-              <p className="no-data">Nenhuma locação encontrada</p>
-            )}
-          </div>
+          <p>Últimas 5 locações registradas no sistema</p>
         </div>
+        
+        {locacoes.length === 0 ? (
+          <div className="no-data-container">
+            <p className="no-data">Nenhuma locação encontrada</p>
+          </div>
+        ) : (
+          <div className="recent-table">
+            <div className="table-header">
+              <div className="col col-cliente">Cliente</div>
+              <div className="col col-veiculo">Veículo</div>
+              <div className="col col-datas">Período</div>
+              <div className="col col-valor">Valor</div>
+              <div className="col col-status">Status</div>
+            </div>
+            <div className="table-body">
+              {locacoes.slice(0, 5).map((locacao) => {
+                const dataRetirada = new Date(locacao.dataRetirada);
+                const dataDevolucao = locacao.dataDevolucaoEfetiva 
+                  ? new Date(locacao.dataDevolucaoEfetiva)
+                  : new Date(locacao.dataDevolucaoPrevista);
+                const dias = Math.ceil((dataDevolucao.getTime() - dataRetirada.getTime()) / (1000 * 60 * 60 * 24));
+                
+                return (
+                  <div className="table-row" key={locacao.id}>
+                    <div className="col col-cliente">
+                      <div className="cliente-info">
+                        <p className="cliente-nome">{locacao.cliente.nome}</p>
+                        <p className="cliente-email">{locacao.cliente.email}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="col col-veiculo">
+                      <div className="veiculo-info">
+                        <p className="veiculo-nome">{locacao.veiculo.marca} {locacao.veiculo.modelo}</p>
+                        <p className="veiculo-placa">{locacao.veiculo.placa}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="col col-datas">
+                      <div className="datas-info">
+                        <div className="data-item">
+                          <Calendar size={14} />
+                          <span>{dataRetirada.toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        <div className="data-item">
+                          <Clock size={14} />
+                          <span>{dias} dias</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="col col-valor">
+                      <p className="valor-text">R$ {parseFloat(locacao.valorPrevisto).toFixed(2)}</p>
+                    </div>
+                    
+                    <div className="col col-status">
+                      <div className={`status-badge status-${locacao.status.toLowerCase()}`}>
+                        {locacao.status === 'ATIVA' && '🔵 Ativa'}
+                        {locacao.status === 'FINALIZADA' && '✅ Finalizada'}
+                        {locacao.status === 'CANCELADA' && '❌ Cancelada'}
+                        {!['ATIVA', 'FINALIZADA', 'CANCELADA'].includes(locacao.status) && locacao.status}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

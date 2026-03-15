@@ -7,6 +7,12 @@ interface LoginDto {
   senha: string;
 }
 
+interface RegisterDto {
+  nome: string;
+  email: string;
+  senha: string;
+}
+
 interface JwtUser {
   userId: number;
   email: string;
@@ -23,6 +29,16 @@ export class AuthController {
     if (!user) {
       return { success: false, message: 'Credenciais inválidas' };
     }
+    return this.authService.login(user);
+  }
+
+  @Post('register')
+  async register(@Body() body: RegisterDto) {
+    const user = await this.authService.register(
+      body.nome,
+      body.email,
+      body.senha,
+    );
     return this.authService.login(user);
   }
 

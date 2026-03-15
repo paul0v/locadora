@@ -1,14 +1,32 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, Edit, Trash } from 'tabler-icons-react';
+import { Search, Plus, Edit, Trash, Calendar } from 'tabler-icons-react';
 import Modal from '../components/Modal';
 import './Veiculos.css';
 import api from '../services/api';
 
 type BackendStatus = 'DISPONIVEL' | 'ALUGADO' | 'EM_MANUTENCAO' | 'INATIVO' | 'VENDIDO';
+type StatusLocacao = 'ATIVA' | 'FINALIZADA' | 'CANCELADA';
 
 interface Categoria {
   id: number;
   nome: string;
+  tarifaDiaria?: number;
+}
+
+interface Cliente {
+  id: number;
+  nome: string;
+}
+
+interface Locacao {
+  id: number;
+  veiculo: Veiculo;
+  cliente: Cliente;
+  dataRetirada: string;
+  dataDevolucaoPrevista: string;
+  dataDevolucaoEfetiva: string | null;
+  valorPrevisto: number;
+  status: StatusLocacao;
 }
 
 interface Veiculo {
@@ -33,11 +51,13 @@ interface VeiculoFormProps {
   initialData?: VeiculoFormData;
   categorias: Categoria[];
   onSubmit: (data: VeiculoFormData) => void;
+  onAddCategoria?: (categoria: Categoria) => void;
 }
 
 export default function Veiculos() {
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [locacoes, setLocacoes] = useState<Locacao[]>([]);
   const [search, setSearch] = useState('');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -63,6 +83,7 @@ export default function Veiculos() {
   useEffect(() => {
     fetchVeiculos();
     fetchCategorias();
+    fetchLocacoes();
   }, []);
 
   const fetchCategorias = async () => {
@@ -72,6 +93,61 @@ export default function Veiculos() {
     } catch (err) {
       console.error('Erro ao buscar categorias', err);
     }
+  };
+
+  const fetchLocacoes = async () => {
+    try {
+      const res = await api.get<Locacao[]>('/locacoes');
+      setLocacoes(res.data);
+    } catch (err) {
+      console.error('Erro ao buscar locações', err);
+    }
+  };
+
+  const getAvailabilityInfo = (veiculo: Veiculo) => {
+    if (veiculo.status === 'DISPONIVEL') {
+      return {
+        text: 'Disponível agora',
+        daysRemaining: 0,
+        returnDate: null,
+      };
+    }
+
+    const activeLocacao = locacoes.find(
+      l => l.veiculo.id === veiculo.id && l.status === 'ATIVA'
+    );
+
+    if (!activeLocacao) {
+      return {
+        text: 'Situação desconhecida',
+        daysRemaining: -1,
+        returnDate: null,
+      };
+    }
+
+    const returnDate = new Date(activeLocacao.dataDevolucaoPrevista);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    returnDate.setHours(0, 0, 0, 0);
+
+    const daysRemaining = Math.ceil((returnDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' };
+    const formattedDate = returnDate.toLocaleDateString('pt-BR', options);
+
+    if (daysRemaining <= 0) {
+      return {
+        text: 'Deveria estar disponível',
+        daysRemaining: 0,
+        returnDate: formattedDate,
+      };
+    }
+
+    return {
+      text: `Disponível em ${daysRemaining} dia${daysRemaining !== 1 ? 's' : ''}`,
+      daysRemaining,
+      returnDate: formattedDate,
+    };
   };
 
   const fetchVeiculos = async () => {
@@ -133,6 +209,10 @@ export default function Veiculos() {
     }
   };
 
+  const handleAddCategoria = (categoria: Categoria) => {
+    setCategorias((prev) => [...prev, categoria]);
+  };
+
   const openEditModal = (veiculo: Veiculo) => {
     setSelectedVeiculo(veiculo);
     setIsEditModalOpen(true);
@@ -180,6 +260,7 @@ export default function Veiculos() {
               <th>Ano</th>
               <th>Categoria</th>
               <th>Status</th>
+              <th>Próxima Disponibilidade</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -194,6 +275,17 @@ export default function Veiculos() {
                   <span className={`status ${statusColor[veiculo.status]}`}>
                     {statusLabel[veiculo.status]}
                   </span>
+                </td>
+                <td>
+                  <div className="availability-cell">
+                    <Calendar size={16} />
+                    <div>
+                      <div className="availability-text">{getAvailabilityInfo(veiculo).text}</div>
+                      {getAvailabilityInfo(veiculo).returnDate && (
+                        <div className="availability-date">{getAvailabilityInfo(veiculo).returnDate}</div>
+                      )}
+                    </div>
+                  </div>
                 </td>
                 <td className="table-actions">
                   <button className="btn-icon" onClick={() => openEditModal(veiculo)}>
@@ -216,7 +308,14 @@ export default function Veiculos() {
         onConfirm={() => {}}
         confirmText="Salvar"
       >
-        <VeiculoForm categorias={categorias} onSubmit={handleNewVeiculo} />
+        {isNewModalOpen && (
+          <VeiculoForm 
+            key={`new-${categorias.length}`}
+            categorias={categorias} 
+            onSubmit={handleNewVeiculo}
+            onAddCategoria={handleAddCategoria}
+          />
+        )}
       </Modal>
 
       <Modal
@@ -231,6 +330,7 @@ export default function Veiculos() {
       >
         {selectedVeiculo && (
           <VeiculoForm
+            key={`edit-${selectedVeiculo.id}-${categorias.length}`}
             categorias={categorias}
             initialData={{
               placa: selectedVeiculo.placa,
@@ -240,6 +340,7 @@ export default function Veiculos() {
               categoriaId: selectedVeiculo.categoria?.id || ''
             }}
             onSubmit={handleEditVeiculo}
+            onAddCategoria={handleAddCategoria}
           />
         )}
       </Modal>
@@ -262,7 +363,7 @@ export default function Veiculos() {
   );
 }
 
-function VeiculoForm({ initialData, categorias, onSubmit }: VeiculoFormProps) {
+function VeiculoForm({ initialData, categorias, onSubmit, onAddCategoria }: VeiculoFormProps) {
   const [formData, setFormData] = useState<VeiculoFormData>(
     initialData || {
       placa: '',
@@ -273,6 +374,13 @@ function VeiculoForm({ initialData, categorias, onSubmit }: VeiculoFormProps) {
     }
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showNewCategoriaForm, setShowNewCategoriaForm] = useState(false);
+  const [newCategoriaData, setNewCategoriaData] = useState({ nome: '', tarifaDiaria: '' });
+  const [localCategorias, setLocalCategorias] = useState(categorias);
+
+  useEffect(() => {
+    setLocalCategorias(categorias);
+  }, [categorias]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,6 +398,30 @@ function VeiculoForm({ initialData, categorias, onSubmit }: VeiculoFormProps) {
     }
 
     onSubmit(formData);
+  };
+
+  const handleCreateCategoria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newCategoriaData.nome.trim() || !newCategoriaData.tarifaDiaria) {
+      alert('Preencha todos os campos da categoria');
+      return;
+    }
+
+    try {
+      const res = await api.post<Categoria>('/categorias', {
+        nome: newCategoriaData.nome,
+        tarifaDiaria: parseFloat(newCategoriaData.tarifaDiaria),
+      });
+      
+      onAddCategoria?.(res.data);
+      setFormData({ ...formData, categoriaId: res.data.id });
+      setShowNewCategoriaForm(false);
+      setNewCategoriaData({ nome: '', tarifaDiaria: '' });
+    } catch (err: any) {
+      console.error('Erro ao criar categoria', err);
+      alert(err?.response?.data?.message || 'Erro ao criar categoria');
+    }
   };
 
   return (
@@ -342,16 +474,73 @@ function VeiculoForm({ initialData, categorias, onSubmit }: VeiculoFormProps) {
 
       <div className="form-group">
         <label>Categoria *</label>
-        <select
-          value={formData.categoriaId}
-          onChange={(e) => setFormData({ ...formData, categoriaId: Number(e.target.value) })}
-        >
-          <option value="">Selecione uma categoria</option>
-          {categorias.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.nome}</option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <select
+            value={formData.categoriaId}
+            onChange={(e) => setFormData({ ...formData, categoriaId: Number(e.target.value) })}
+            style={{ flex: 1 }}
+          >
+            <option value="">Selecione uma categoria</option>
+            {localCategorias.map((cat) => (
+              <option key={cat.id} value={cat.id}>{cat.nome}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setShowNewCategoriaForm(!showNewCategoriaForm)}
+            className="btn-secondary"
+            title="Adicionar nova categoria"
+          >
+            +
+          </button>
+        </div>
         {errors.categoriaId && <span className="error">{errors.categoriaId}</span>}
+        
+        {showNewCategoriaForm && (
+          <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '6px', border: '1px solid #e0e0e0' }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 600 }}>Nova Categoria</h4>
+            <div className="form-group">
+              <label style={{ fontSize: '12px' }}>Nome *</label>
+              <input
+                type="text"
+                value={newCategoriaData.nome}
+                onChange={(e) => setNewCategoriaData({ ...newCategoriaData, nome: e.target.value })}
+                placeholder="Ex: Sedan, SUV"
+                style={{ fontSize: '13px', padding: '8px' }}
+              />
+            </div>
+            <div className="form-group">
+              <label style={{ fontSize: '12px' }}>Tarifa Diária (R$) *</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={newCategoriaData.tarifaDiaria}
+                onChange={(e) => setNewCategoriaData({ ...newCategoriaData, tarifaDiaria: e.target.value })}
+                placeholder="Ex: 150.00"
+                style={{ fontSize: '13px', padding: '8px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleCreateCategoria}
+                className="btn-primary"
+                style={{ flex: 1, padding: '8px', fontSize: '13px' }}
+              >
+                Criar
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowNewCategoriaForm(false)}
+                className="btn-secondary"
+                style={{ flex: 1, padding: '8px', fontSize: '13px' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>

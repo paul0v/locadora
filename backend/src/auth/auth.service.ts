@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -45,5 +45,44 @@ export class AuthService {
         email: user.email,
       },
     };
+  }
+
+  async register(nome: string, email: string, senha: string): Promise<AuthUser> {
+    // Validações básicas
+    if (!nome || !email || !senha) {
+      throw new BadRequestException('Nome, email e senha são obrigatórios');
+    }
+
+    if (senha.length < 6) {
+      throw new BadRequestException('Senha deve ter no mínimo 6 caracteres');
+    }
+
+    // Verificar se email já existe
+    const existingUser = await this.funcionarioRepository.findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email já cadastrado no sistema');
+    }
+
+    // Hash da senha
+    const hashedPassword = await bcrypt.hash(senha, 10);
+
+    // Criar novo funcionário
+    const newFuncionario = this.funcionarioRepository.create({
+      nome,
+      email,
+      senha: hashedPassword,
+    });
+
+    const savedFuncionario = await this.funcionarioRepository.save(
+      newFuncionario,
+    );
+
+    // Retornar sem a senha
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { senha: _, ...result } = savedFuncionario;
+    return result as AuthUser;
   }
 }

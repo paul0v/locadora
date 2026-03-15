@@ -95,9 +95,46 @@
   box-shadow: 0 4px 12px rgba(0, 82, 204, 0.3);
 }
 
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .login-footer {
   color: #999;
   font-size: 12px;
   letter-spacing: 1px;
   margin: 0;
+}
+
+.login-footer-text {
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.login-footer-text p {
+  margin: 0;
+  color: #666;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #0052cc;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+  font-size: 14px;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+.link-button:hover:not(:disabled) {
+  color: #0043a8;
+}
+
+.link-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
