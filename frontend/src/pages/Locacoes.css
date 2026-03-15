@@ -260,3 +260,229 @@
 .btn-confirm:hover {
   background: #0043a8;
 }
+
+/* Abas de navegação */
+.locacoes-tabs {
+  display: flex;
+  gap: 12px;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.locacoes-tabs .tab {
+  padding: 10px 20px;
+  border: 2px solid transparent;
+  background: #f5f5f5;
+  color: #666;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.locacoes-tabs .tab:hover {
+  background: #e8e8e8;
+}
+
+.locacoes-tabs .tab.active {
+  background: #0052cc;
+  color: white;
+  border-color: #0052cc;
+}
+
+/* Gerenciar Locações */
+.gerenciar-locacoes {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.locacoes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.locacao-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f9f9f9;
+  transition: all 0.2s ease;
+}
+
+.locacao-card:hover {
+  border-color: #0052cc;
+  box-shadow: 0 2px 8px rgba(0, 82, 204, 0.1);
+}
+
+.locacao-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.locacao-header h3 {
+  margin: 0 0 4px 0;
+  color: #1a1a1a;
+  font-size: 16px;
+}
+
+.locacao-info {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.locacao-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+}
+
+.locacao-dates small {
+  color: #999;
+  font-size: 12px;
+}
+
+.locacao-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-finalizar {
+  flex: 1;
+  padding: 10px 12px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.btn-finalizar:hover {
+  background: #059669;
+}
+
+.btn-delete {
+  flex: 1;
+  padding: 10px 12px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.btn-delete:hover {
+  background: #dc2626;
+}
+
+.locacao-finalizar {
+  background: white;
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.locacao-finalizar h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #1a1a1a;
+}
+
+.locacao-finalizar .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.locacao-finalizar label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+.locacao-finalizar input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-confirm {
+  flex: 1;
+  padding: 10px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-confirm:hover {
+  background: #059669;
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 10px;
+  background: #9ca3af;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.btn-cancel:hover {
+  background: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .locacao-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .locacao-dates {
+    text-align: left;
+  }
+
+  .locacoes-tabs {
+    flex-direction: column;
+  }
+}

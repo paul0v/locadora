@@ -213,6 +213,18 @@ export default function Veiculos() {
     setCategorias((prev) => [...prev, categoria]);
   };
 
+  const handleChangeStatus = async (veiculoId: number, newStatus: BackendStatus) => {
+    try {
+      await api.put(`/veiculos/${veiculoId}`, { status: newStatus });
+      setVeiculos((prev) =>
+        prev.map(v => v.id === veiculoId ? { ...v, status: newStatus } : v)
+      );
+    } catch (err: any) {
+      console.error('Erro ao alterar status do veículo', err);
+      alert(err?.response?.data?.message || 'Erro ao alterar status');
+    }
+  };
+
   const openEditModal = (veiculo: Veiculo) => {
     setSelectedVeiculo(veiculo);
     setIsEditModalOpen(true);
@@ -272,9 +284,17 @@ export default function Veiculos() {
                 <td>{veiculo.ano}</td>
                 <td>{veiculo.categoria?.nome || '-'}</td>
                 <td>
-                  <span className={`status ${statusColor[veiculo.status]}`}>
-                    {statusLabel[veiculo.status]}
-                  </span>
+                  <select
+                    value={veiculo.status}
+                    onChange={(e) => handleChangeStatus(veiculo.id, e.target.value as BackendStatus)}
+                    className={`status-select ${statusColor[veiculo.status]}`}
+                    title="Clique para alterar o status"
+                  >
+                    <option value="DISPONIVEL">Disponível</option>
+                    <option value="EM_MANUTENCAO">Em Manutenção</option>
+                    <option value="INATIVO">Inativo</option>
+                    <option value="VENDIDO">Vendido</option>
+                  </select>
                 </td>
                 <td>
                   <div className="availability-cell">

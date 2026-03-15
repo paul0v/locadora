@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight } from 'tabler-icons-react';
+import { ChevronRight, Trash, Check } from 'tabler-icons-react';
 import './Locacoes.css';
 import api from '../services/api';
 
@@ -12,14 +12,31 @@ interface Cliente {
   cnh: string;
 }
 
+interface Categoria {
+  id: number;
+  nome: string;
+  tarifaDiaria?: number;
+}
+
 interface Veiculo {
   id: number;
   placa: string;
   marca: string;
   modelo: string;
   ano: number;
-  categoria: string;
-  status: 'DISPONIVEL' | 'ALUGADO' | 'MANUTENCAO';
+  categoria: Categoria;
+  status: 'DISPONIVEL' | 'ALUGADO' | 'EM_MANUTENCAO';
+}
+
+interface LocacaoAtiva {
+  id: number;
+  cliente: Cliente;
+  veiculo: Veiculo;
+  dataRetirada: string;
+  dataDevolucaoPrevista: string;
+  dataDevolucaoEfetiva: string | null;
+  valorPrevisto: number;
+  status: 'ATIVA' | 'FINALIZADA' | 'CANCELADA';
 }
 
 interface SelectionData {
@@ -34,8 +51,10 @@ interface SelectionData {
 
 export default function Locacoes() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [tab, setTab] = useState<'criar' | 'gerenciar'>('criar');
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
+  const [locacoesAtivas, setLocacoesAtivas] = useState<LocacaoAtiva[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selection, setSelection] = useState<SelectionData>({
@@ -47,10 +66,14 @@ export default function Locacoes() {
     dataFim: '',
     total: 0,
   });
+  const [finalizandoId, setFinalizandoId] = useState<number | null>(null);
+  const [dataEntrega, setDataEntrega] = useState('');
+  const [valorFinal, setValorFinal] = useState('');
 
   useEffect(() => {
     fetchClientes();
     fetchVeiculos();
+    fetchLocacoesAtivas();
   }, []);
 
   const fetchClientes = async () => {
@@ -74,22 +97,71 @@ export default function Locacoes() {
     }
   };
 
+  const fetchLocacoesAtivas = async () => {
+    try {
+      const res = await api.get<LocacaoAtiva[]>('/locacoes');
+      const ativas = res.data.filter(l => l.status === 'ATIVA');
+      setLocacoesAtivas(ativas);
+    } catch (err) {
+      console.error('Erro ao buscar locações', err);
+    }
+  };
+
+  const handleFinalizarLocacao = async (locacaoId: number) => {
+    if (!dataEntrega || !valorFinal) {
+      setError('Preencha a data de entrega e o valor final');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.post(`/locacoes/${locacaoId}/finalizar`, {
+        valorFinal: parseFloat(valorFinal),
+      });
+      setLocacoesAtivas((prev) => prev.filter(l => l.id !== locacaoId));
+      setFinalizandoId(null);
+      setDataEntrega('');
+      setValorFinal('');
+      setError('');
+      await fetchVeiculos();
+      await fetchLocacoesAtivas();
+    } catch (err: any) {
+      console.error('Erro ao finalizar locação', err);
+      setError(err?.response?.data?.message || 'Erro ao finalizar locação');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelarLocacao = async (locacaoId: number) => {
+    if (!window.confirm('Tem certeza que deseja cancelar esta locação? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.delete(`/locacoes/${locacaoId}`);
+      setLocacoesAtivas((prev) => prev.filter(l => l.id !== locacaoId));
+      setError('');
+      await fetchVeiculos();
+      await fetchLocacoesAtivas();
+    } catch (err: any) {
+      console.error('Erro ao cancelar locação', err);
+      setError(err?.response?.data?.message || 'Erro ao cancelar locação');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calcularTotal = (dataInicio: string, dataFim: string): number => {
     if (!dataInicio || !dataFim) return 0;
     const inicio = new Date(dataInicio);
     const fim = new Date(dataFim);
     const dias = Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
     
-    const diariaMap: Record<string, number> = {
-      'Econômico': 120,
-      'Sedan': 150,
-      'Sedan Premium': 280,
-      'SUV': 220,
-      'Luxo': 350,
-    };
-    
-    const diariaVeiculo = diariaMap[veiculos.find(v => v.id === selection.veiculoId)?.categoria || 'Sedan'] || 150;
-    return dias * diariaVeiculo;
+    const veiculo = veiculos.find(v => v.id === selection.veiculoId);
+    const tarifa = veiculo?.categoria?.tarifaDiaria || 150;
+    return dias * tarifa;
   };
 
   const handleSelectCliente = (cliente: Cliente) => {
@@ -155,13 +227,29 @@ export default function Locacoes() {
   return (
     <div className="locacoes-page">
       <div className="page-header">
-        <h1>Nova Locação</h1>
-        <p>Selecione o cliente e o veículo disponível para iniciar</p>
+        <h1>Locações</h1>
+        <p>Gerenciar aluguel de veículos</p>
+      </div>
+
+      <div className="locacoes-tabs">
+        <button 
+          className={`tab ${tab === 'criar' ? 'active' : ''}`}
+          onClick={() => setTab('criar')}
+        >
+          ➕ Nova Locação
+        </button>
+        <button 
+          className={`tab ${tab === 'gerenciar' ? 'active' : ''}`}
+          onClick={() => { setTab('gerenciar'); fetchLocacoesAtivas(); }}
+        >
+          📋 Gerenciar Locações ({locacoesAtivas.length})
+        </button>
       </div>
 
       {error && <div style={{ padding: '1rem', backgroundColor: '#fee', color: '#c00', borderRadius: '4px', marginBottom: '1rem' }}>{error}</div>}
 
-      <div className="form-container">
+      {tab === 'criar' ? (
+        <div className="form-container">
         <div className="steps-header">
           <div className={`step ${step === 1 ? 'active' : 'done'}`}>
             <span>1</span>
@@ -223,7 +311,7 @@ export default function Locacoes() {
                   >
                     <strong>{veiculo.marca} {veiculo.modelo}</strong>
                     <p>{veiculo.placa}</p>
-                    <small>{veiculo.ano} - {veiculo.categoria}</small>
+                    <small>{veiculo.ano} - {veiculo.categoria?.nome || 'N/A'}</small>
                   </div>
                 ))
               )}
@@ -294,7 +382,91 @@ export default function Locacoes() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      ) : (
+        <div className="gerenciar-locacoes">
+          <div className="locacoes-lista">
+            {locacoesAtivas.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#999' }}>
+                <p>Nenhuma locação ativa no momento</p>
+              </div>
+            ) : (
+              locacoesAtivas.map((locacao) => (
+                <div key={locacao.id} className="locacao-card">
+                  <div className="locacao-header">
+                    <div>
+                      <h3>{locacao.cliente.nome}</h3>
+                      <p className="locacao-info">{locacao.veiculo.marca} {locacao.veiculo.modelo} - {locacao.veiculo.placa}</p>
+                    </div>
+                    <div className="locacao-dates">
+                      <small>Retirada: {new Date(locacao.dataRetirada).toLocaleDateString('pt-BR')}</small>
+                      <small>Devolução: {new Date(locacao.dataDevolucaoPrevista).toLocaleDateString('pt-BR')}</small>
+                    </div>
+                  </div>
+                  
+                  {finalizandoId === locacao.id ? (
+                    <div className="locacao-finalizar">
+                      <h4>Finalizar Locação</h4>
+                      <div className="form-group">
+                        <label>Data da Entrega</label>
+                        <input
+                          type="date"
+                          value={dataEntrega}
+                          onChange={(e) => setDataEntrega(e.target.value)}
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Valor Final (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={valorFinal}
+                          onChange={(e) => setValorFinal(e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="form-actions">
+                        <button
+                          className="btn-confirm"
+                          onClick={() => handleFinalizarLocacao(locacao.id)}
+                          disabled={loading}
+                        >
+                          <Check size={16} /> Confirmar Entrega
+                        </button>
+                        <button
+                          className="btn-cancel"
+                          onClick={() => { setFinalizandoId(null); setDataEntrega(''); setValorFinal(''); }}
+                          disabled={loading}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="locacao-actions">
+                      <button
+                        className="btn-finalizar"
+                        onClick={() => setFinalizandoId(locacao.id)}
+                        title="Registrar devolução e finalizar locação"
+                      >
+                        <Check size={16} /> Finalizar/Entregar
+                      </button>
+                      <button
+                        className="btn-delete"
+                        onClick={() => handleCancelarLocacao(locacao.id)}
+                        title="Cancelar locação"
+                      >
+                        <Trash size={16} /> Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
