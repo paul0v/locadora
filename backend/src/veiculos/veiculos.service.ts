@@ -26,7 +26,7 @@ export class VeiculosService {
   async findAll(): Promise<Veiculo[]> {
     try {
       this.logger.debug('Buscando todos os veículos');
-      return await this.repo.find();
+      return await this.repo.find({ relations: ['categoria'] });
     } catch (error) {
       this.logger.error(`Erro ao buscar veículos: ${error.message}`, error.stack);
       throw error;
@@ -36,7 +36,7 @@ export class VeiculosService {
   async findById(id: number): Promise<Veiculo | null> {
     try {
       this.logger.debug(`Buscando veículo com ID: ${id}`);
-      const veiculo = await this.repo.findOne({ where: { id } });
+      const veiculo = await this.repo.findOne({ where: { id }, relations: ['categoria'] });
       if (!veiculo) {
         this.logger.warn(`Veículo não encontrado: ${id}`);
         throw new NotFoundException(`Veículo com ID ${id} não encontrado`);
